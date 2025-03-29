@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
 	"github.com/hashicorp/terraform-provider-aws/internal/errs/sdkdiag"
-	tfslices "github.com/hashicorp/terraform-provider-aws/internal/slices"
 	"github.com/hashicorp/terraform-provider-aws/names"
 )
 
@@ -24,6 +23,34 @@ func dataSourceParametersByPath() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			names.AttrParameters: {
+				Type:     schema.TypeSet,
+				Computed: true,
+				Elem: &schema.Resource{
+					SchemaFunc: dataSourceParametersByPathMap().SchemaMap,
+				},
+			},
+			names.AttrPath: {
+				Type:     schema.TypeString,
+				Required: true,
+			},
+			"recursive": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
+			},
+			"with_decryption": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  true,
+			},
+		},
+	}
+}
+
+func dataSourceParametersByPathMap() *schema.Resource {
+	return &schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"default": {
 				Type:     schema.TypeSet,
 				Computed: true,
 				Elem: &schema.Resource{
@@ -46,20 +73,6 @@ func dataSourceParametersByPath() *schema.Resource {
 						},
 					},
 				},
-			},
-			names.AttrPath: {
-				Type:     schema.TypeString,
-				Required: true,
-			},
-			"recursive": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Default:  false,
-			},
-			"with_decryption": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Default:  true,
 			},
 		},
 	}
@@ -89,14 +102,17 @@ func dataSourceParametersReadByPath(ctx context.Context, d *schema.ResourceData,
 	}
 
 	d.SetId(path)
-	d.Set(names.AttrParameters, tfslices.ApplyToAll(output, func(parameter awstypes.Parameter) map[string]any {
-		return map[string]any{
-			names.AttrARN:   aws.ToString(parameter.ARN),
-			names.AttrName:  aws.ToString(parameter.Name),
-			names.AttrType:  parameter.Type,
-			names.AttrValue: aws.ToString(parameter.Value),
+	d.Set(names.AttrParameters, func() map[string]any {
+		myMap := make(map[string]any)
+		for _, parameter := range output {
+			myMap[aws.ToString(parameter.Name)] = map[string]any{
+				names.AttrARN:   aws.ToString(parameter.ARN),
+				names.AttrType:  parameter.Type,
+				names.AttrValue: aws.ToString(parameter.Value),
+			}
 		}
-	}))
+		return myMap
+	})
 
 	return diags
 }
