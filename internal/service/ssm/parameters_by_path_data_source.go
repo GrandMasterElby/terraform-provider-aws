@@ -5,6 +5,9 @@ package ssm
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
+	"rand"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
@@ -26,7 +29,32 @@ func dataSourceParametersByPath() *schema.Resource {
 				Type:     schema.TypeSet,
 				Computed: true,
 				Elem: &schema.Resource{
-					SchemaFunc: dataSourceParametersByPathMap().SchemaMap,
+					Schema: map[string]*schema.Schema{
+						"example": {
+							Type:     schema.TypeSet,
+							Computed: true,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									names.AttrARN: {
+										Type:     schema.TypeString,
+										Computed: true,
+									},
+									names.AttrName: {
+										Type:     schema.TypeString,
+										Computed: true,
+									},
+									names.AttrType: {
+										Type:     schema.TypeString,
+										Computed: true,
+									},
+									names.AttrValue: {
+										Type:     schema.TypeString,
+										Computed: true,
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 			names.AttrPath: {
@@ -47,35 +75,8 @@ func dataSourceParametersByPath() *schema.Resource {
 	}
 }
 
-func dataSourceParametersByPathMap() *schema.Resource {
-	return &schema.Resource{
-		Schema: map[string]*schema.Schema{
-			"default": {
-				Type:     schema.TypeSet,
-				Computed: true,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						names.AttrARN: {
-							Type:     schema.TypeString,
-							Computed: true,
-						},
-						names.AttrName: {
-							Type:     schema.TypeString,
-							Computed: true,
-						},
-						names.AttrType: {
-							Type:     schema.TypeString,
-							Computed: true,
-						},
-						names.AttrValue: {
-							Type:     schema.TypeString,
-							Computed: true,
-						},
-					},
-				},
-			},
-		},
-	}
+func randomId() int {
+	return rand.Int()
 }
 
 func dataSourceParametersReadByPath(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
@@ -102,17 +103,19 @@ func dataSourceParametersReadByPath(ctx context.Context, d *schema.ResourceData,
 	}
 
 	d.SetId(path)
-	d.Set(names.AttrParameters, func() map[string]any {
-		myMap := make(map[string]any)
-		for _, parameter := range output {
-			myMap[aws.ToString(parameter.Name)] = map[string]any{
-				names.AttrARN:   aws.ToString(parameter.ARN),
-				names.AttrType:  parameter.Type,
-				names.AttrValue: aws.ToString(parameter.Value),
-			}
+	fmt.Println("d = ")
+	fmt.Println(d)
+	myMap := make(map[string]any)
+	for _, parameter := range output {
+		myMap[aws.ToString(parameter.Name)] = map[string]any{
+			names.AttrARN:   aws.ToString(parameter.ARN),
+			names.AttrType:  parameter.Type,
+			names.AttrValue: aws.ToString(parameter.Value),
 		}
-		return myMap
-	})
+	}
+	fmt.Println("myMap = ")
+	fmt.Println(myMap)
+	d.Set(names.AttrParameters, schema.Set{m: myMap})
 
 	return diags
 }
